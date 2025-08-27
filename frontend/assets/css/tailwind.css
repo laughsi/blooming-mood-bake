@@ -1,0 +1,7 @@
+/* assets/css/tailwind.css */
+
+@import './main.scss';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

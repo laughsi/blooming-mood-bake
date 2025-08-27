@@ -1,0 +1,13 @@
+$primary-color: #38b2ac; 
+$secondary-color: #ecc94b; 
+$text-dark-color: #2d3748;
+$text-light-color: #ffffff;
+
+$font-size-base: 1rem; 
+$font-size-lg: 1.125rem; 
+
+@mixin flex-center {
+   display: flex;
+   justify-content: center;
+   align-items: center;
+ }

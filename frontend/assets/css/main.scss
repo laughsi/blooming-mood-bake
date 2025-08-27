@@ -1,0 +1,15 @@
+@use "@/assets/css/variables";
+
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.font-script {
+  font-family: 'Dancing Script', cursive;
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+}
