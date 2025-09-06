@@ -15,7 +15,7 @@
       </nav>
 
       <div class="flex items-center space-x-4">
-        <div v-if="isLoggedIn" class="hidden md:flex items-center flex-nowrap md:space-x-4 lg:space-x-6">
+        <div v-if="isLoggedIn" class="text-textDark hover:text-primary transition-colors whitespace-nowrap flex items-center flex-shrink-0">
           <span class="mr-2">{{ userName }} 님</span>
         </div>
 
