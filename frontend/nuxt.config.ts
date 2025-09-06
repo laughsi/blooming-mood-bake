@@ -7,6 +7,9 @@ export default defineNuxtConfig({
     '@nuxt/icon',
     '@pinia/nuxt',
   ],
+  icon: {
+    server: false
+  },
   vite: {
     server: {
       proxy: {
@@ -76,7 +79,8 @@ export default defineNuxtConfig({
       naverRedirectUri: process.env.NUXT_PUBLIC_NAVER_REDIRECT_URI || 'http://localhost:3000/auth/callback/naver',
       kakaoRedirectUri: process.env.NUXT_PUBLIC_KAKAO_REDIRECT_URI || 'http://localhost:3000/auth/callback/kakao',
 
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api'
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api',
+      uploadsUrl: process.env.NUXT_PUBLIC_UPLOADS_URL || 'http://localhost:5000/uploads'
     }
   }
 });

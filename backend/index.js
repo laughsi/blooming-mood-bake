@@ -9,6 +9,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 const { createClient } = require('@supabase/supabase-js');
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/admin/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,

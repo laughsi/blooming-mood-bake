@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs').promises;
 
-module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucketName) => {
+module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucketName, isProduction) => {
     const uploadProductMiddleware = multer({ storage: multer.memoryStorage() });
 
     const formatProductResponse = (productRow) => {
@@ -50,9 +51,6 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         res.json({ success: true, message: '관리자 대시보드 데이터입니다. (곧 실제 데이터를 포함할 예정입니다.)' });
     });
 
-    // ==========================================================
-    // 상품 목록 조회 라우트 (GET /admin/products)
-    // ==========================================================
     router.get('/products', authMiddleware, adminMiddleware, async (req, res) => {
         let client;
         try {
@@ -126,12 +124,10 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         }
     });
 
-    // ==========================================================
-    // 새 상품 추가 라우트 (POST /admin/products)
-    // ==========================================================
     router.post('/products', authMiddleware, adminMiddleware, uploadProductMiddleware.single('image'), async (req, res) => {
         let client;
-        let imageUrlFromSupabase = null;
+        let imageUrl = null;
+        let isLocalFile = false;
 
         try {
             client = await pool.connect();
@@ -144,23 +140,32 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             }
 
             if (req.file) {
-                const fileName = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
-                const { data, error } = await supabase.storage
-                    .from(productBucketName)
-                    .upload(fileName, req.file.buffer, {
-                        contentType: req.file.mimetype,
-                        upsert: false 
-                    });
+                if (isProduction) {
+                    const fileName = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from(productBucketName)
+                        .upload(fileName, req.file.buffer, {
+                            contentType: req.file.mimetype,
+                            upsert: false
+                        });
 
-                if (error) {
-                    throw new Error(`이미지 업로드 중 오류 발생: ${error.message}`);
+                    if (uploadError) {
+                        throw new Error(`이미지 업로드 중 오류 발생: ${uploadError.message}`);
+                    }
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from(productBucketName)
+                        .getPublicUrl(fileName);
+
+                    imageUrl = publicUrlData.publicUrl;
+                } else {
+                    const localFileName = `${Date.now()}-${req.file.originalname}`;
+                    const localFilePath = path.join(__dirname, '..', 'uploads', 'product_images', localFileName);
+                    await fs.writeFile(localFilePath, req.file.buffer);
+
+                    imageUrl = `/uploads/product_images/${localFileName}`;
+                    isLocalFile = true;
                 }
-
-                const { data: publicUrlData } = supabase.storage
-                    .from(productBucketName)
-                    .getPublicUrl(fileName);
-
-                imageUrlFromSupabase = publicUrlData.publicUrl;
             }
 
             const categoryResult = await client.query('SELECT id FROM categories WHERE name = $1', [category]);
@@ -191,7 +196,7 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
                 parseInt(price),
                 parseInt(stock),
                 category_id,
-                imageUrlFromSupabase,
+                imageUrl,
                 finalIsAvailable,
                 isMonthlyMenuBool,
                 isSignatureMenuBool
@@ -205,9 +210,12 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
 
         } catch (error) {
             if (client) { await client.query('ROLLBACK'); }
-            if (imageUrlFromSupabase && req.file) {
-                const fileNameToDelete = path.basename(new URL(imageUrlFromSupabase).pathname);
+            if (isProduction && imageUrl && req.file) {
+                const fileNameToDelete = path.basename(new URL(imageUrl).pathname);
                 await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
+            } else if (!isProduction && imageUrl && isLocalFile) {
+                const localFilePath = path.join(__dirname, '..', imageUrl);
+                await fs.unlink(localFilePath);
             }
             console.error('상품 등록 중 오류 발생:', error);
             const errorMessage = (error.code === '23503') ? '데이터베이스 오류: 카테고리 ID가 존재하지 않습니다.' :
@@ -220,9 +228,6 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         }
     });
 
-    // ==========================================================
-    // 특정 상품 상세 조회 라우트 (GET /admin/products/:id)
-    // ==========================================================
     router.get('/products/:id', authMiddleware, adminMiddleware, async (req, res) => {
         let client;
         const { id } = req.params;
@@ -262,13 +267,10 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         }
     });
 
-    // ==========================================================
-    // 상품 수정 라우트 (PUT /admin/products/:id)
-    // ==========================================================
     router.put('/products/:id', authMiddleware, adminMiddleware, uploadProductMiddleware.single('image'), async (req, res) => {
         let client;
         const { id } = req.params;
-        let imageUrlFromSupabase = null;
+        let imageUrl = null;
         let oldImageUrlToDelete = null;
 
         try {
@@ -286,32 +288,46 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             }
 
             if (req.file) {
-                const fileName = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
-                const { error } = await supabase.storage
-                    .from(productBucketName)
-                    .upload(fileName, req.file.buffer, {
-                        contentType: req.file.mimetype,
-                        upsert: false
-                    });
+                if (isProduction) {
+                    const fileName = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
+                    const { error: uploadError } = await supabase.storage
+                        .from(productBucketName)
+                        .upload(fileName, req.file.buffer, {
+                            contentType: req.file.mimetype,
+                            upsert: false
+                        });
 
-                if (error) {
-                    throw new Error(`이미지 업로드 중 오류 발생: ${error.message}`);
+                    if (uploadError) { throw new Error(`이미지 업로드 중 오류 발생: ${uploadError.message}`); }
+
+                    const { data: publicUrlData } = supabase.storage
+                        .from(productBucketName)
+                        .getPublicUrl(fileName);
+                    imageUrl = publicUrlData.publicUrl;
+
+                } else {
+                    const localFileName = `${Date.now()}-${req.file.originalname}`;
+                    const localFilePath = path.join(__dirname, '..', 'uploads', 'product_images', localFileName);
+                    await fs.writeFile(localFilePath, req.file.buffer);
+                    imageUrl = `/uploads/product_images/${localFileName}`;
                 }
 
-                const { data: publicUrlData } = supabase.storage
-                    .from(productBucketName)
-                    .getPublicUrl(fileName);
-
-                imageUrlFromSupabase = publicUrlData.publicUrl;
-                
                 if (oldProduct.image_url) {
-                    oldImageUrlToDelete = oldProduct.image_url;
+                    if (isProduction) {
+                        oldImageUrlToDelete = oldProduct.image_url;
+                    } else {
+                        oldImageUrlToDelete = path.join(__dirname, '..', oldProduct.image_url);
+                    }
                 }
+
             } else if (image === 'null' && oldProduct.image_url) {
-                imageUrlFromSupabase = null;
-                oldImageUrlToDelete = oldProduct.image_url;
+                imageUrl = null;
+                if (isProduction) {
+                    oldImageUrlToDelete = oldProduct.image_url;
+                } else {
+                    oldImageUrlToDelete = path.join(__dirname, '..', oldProduct.image_url);
+                }
             } else {
-                imageUrlFromSupabase = oldProduct.image_url;
+                imageUrl = oldProduct.image_url;
             }
 
             const finalName = name !== undefined ? name : oldProduct.name;
@@ -349,15 +365,25 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             `;
             const values = [
                 finalName, finalDescription, finalPrice, finalStock, finalCategoryId,
-                imageUrlFromSupabase, finalIsAvailable, finalIsMonthlyMenu, finalIsSignatureMenu, id
+                imageUrl, finalIsAvailable, finalIsMonthlyMenu, finalIsSignatureMenu, id
             ];
 
             const { rows } = await client.query(updateQuery, values);
             await client.query('COMMIT');
 
             if (oldImageUrlToDelete) {
-                const fileNameToDelete = path.basename(new URL(oldImageUrlToDelete).pathname);
-                await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
+                if (isProduction) {
+                    const fileNameToDelete = path.basename(new URL(oldImageUrlToDelete).pathname);
+                    await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
+                } else {
+                    try {
+                        await fs.unlink(oldImageUrlToDelete);
+                    } catch (unlinkError) {
+                        if (unlinkError.code !== 'ENOENT') {
+                            console.error('로컬 파일 삭제 실패:', unlinkError);
+                        }
+                    }
+                }
             }
 
             const updatedProduct = formatProductResponse(rows[0]);
@@ -365,9 +391,14 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
 
         } catch (error) {
             if (client) { await client.query('ROLLBACK'); }
-            if (imageUrlFromSupabase && req.file) {
-                const fileNameToDelete = path.basename(new URL(imageUrlFromSupabase).pathname);
-                await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
+            if (imageUrl && req.file) {
+                if (isProduction) {
+                    const fileNameToDelete = path.basename(new URL(imageUrl).pathname);
+                    await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
+                } else {
+                    const localFilePath = path.join(__dirname, '..', imageUrl);
+                    await fs.unlink(localFilePath);
+                }
             }
             console.error('상품 수정 중 오류 발생:', error);
             res.status(500).json({ success: false, message: '상품 수정 중 서버 오류가 발생했습니다.', detailedError: error.message });
@@ -376,9 +407,6 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         }
     });
 
-    // ==========================================================
-    // 상품 상태 부분 수정 라우트 (PATCH /admin/products/:id/status)
-    // ==========================================================
     router.patch('/products/:id/status', authMiddleware, adminMiddleware, async (req, res) => {
         let client;
         const { id } = req.params;
@@ -431,9 +459,6 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         }
     });
 
-    // ==========================================================
-    // 상품 삭제 라우트 (DELETE /admin/products/:id)
-    // ==========================================================
     router.delete('/products/:id', authMiddleware, adminMiddleware, async (req, res) => {
         let client;
         const { id } = req.params;
@@ -458,10 +483,21 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             }
 
             if (imageUrlToDelete) {
-                const fileNameToDelete = path.basename(new URL(imageUrlToDelete).pathname);
-                const { error } = await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
-                if (error) {
-                    console.error('Supabase 이미지 삭제 실패:', error);
+                if (isProduction) {
+                    const fileNameToDelete = path.basename(new URL(imageUrlToDelete).pathname);
+                    const { error } = await supabase.storage.from(productBucketName).remove([fileNameToDelete]);
+                    if (error) {
+                        console.error('Supabase 이미지 삭제 실패:', error);
+                    }
+                } else {
+                    const localFilePath = path.join(__dirname, '..', imageUrlToDelete);
+                    try {
+                        await fs.unlink(localFilePath);
+                    } catch (unlinkError) {
+                        if (unlinkError.code !== 'ENOENT') {
+                            console.error('로컬 파일 삭제 실패:', unlinkError);
+                        }
+                    }
                 }
             }
 
