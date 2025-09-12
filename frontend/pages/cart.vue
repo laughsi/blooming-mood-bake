@@ -99,14 +99,12 @@ const config = useRuntimeConfig();
 const apiBaseUrl = config.public.apiBaseUrl;
 
 const loading = ref(true);
-const deliveryMethod = ref('pickup'); // 'pickup' 또는 'delivery'
+const deliveryMethod = ref('pickup');
 
-// 배송비 계산
 const deliveryFee = computed(() => {
   return deliveryMethod.value === 'delivery' ? 5000 : 0;
 });
 
-// 총 결제 금액 계산 (상품 금액 + 배송비)
 const cartTotalWithFee = computed(() => {
   return cartStore.cartTotalPrice + deliveryFee.value;
 });

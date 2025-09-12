@@ -168,7 +168,8 @@ const scrollMonthly = (direction: number) => {
     const itemElement = monthlyCarousel.value.querySelector('.snap-start') as HTMLElement;
     if (itemElement) {
       const itemWidth = itemElement.offsetWidth;
-      monthlyCarousel.value.scrollBy({ left: direction * itemWidth * 4, behavior: 'smooth' });
+      // 한 아이템씩 부드럽게 스크롤
+      monthlyCarousel.value.scrollBy({ left: direction * itemWidth, behavior: 'smooth' });
     }
   }
 };
@@ -178,7 +179,8 @@ const scrollFeatured = (direction: number) => {
     const itemElement = featuredCarousel.value.querySelector('.snap-start') as HTMLElement;
     if (itemElement) {
       const itemWidth = itemElement.offsetWidth;
-      featuredCarousel.value.scrollBy({ left: direction * itemWidth * 4, behavior: 'smooth' });
+      // 한 아이템씩 부드럽게 스크롤
+      featuredCarousel.value.scrollBy({ left: direction * itemWidth, behavior: 'smooth' });
     }
   }
 };

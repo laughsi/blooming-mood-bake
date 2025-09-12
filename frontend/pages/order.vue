@@ -12,8 +12,23 @@
             <div class="flex-1">
               <h3 class="font-semibold text-gray-800">{{ item.name }}</h3>
               <p class="text-sm text-gray-500">{{ item.quantity }}개</p>
-              <p class="font-bold text-gray-900">{{ formatCurrency(item.price * item.quantity) }}</p>
+              <p class="font-bold text-gray-900">{{ formatCurrency(item.price * item.quantity) }}원</p>
             </div>
+            <div class="flex items-center space-x-2">
+              <button @click="cartStore.decreaseQuantity(item.product_id)"
+                class="bg-gray-200 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors duration-200">-</button>
+              <span class="font-medium w-6 text-center">{{ item.quantity }}</span>
+              <button @click="cartStore.increaseQuantity(item.product_id)"
+                class="bg-gray-200 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors duration-200"
+                :disabled="item.quantity >= item.stock">+</button>
+            </div>
+            <button @click="handleRemoveItem(item.product_id)"
+              class="ml-4 text-red-500 hover:text-red-700 transition-colors duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -99,15 +114,15 @@
           <div class="space-y-2 text-gray-600">
             <div class="flex justify-between">
               <span>상품 가격</span>
-              <span>{{ formatCurrency(totalPrice) }}</span>
+              <span>{{ formatCurrency(totalPrice) }}원</span>
             </div>
             <div class="flex justify-between">
               <span>배송비</span>
-              <span>{{ formatCurrency(deliveryFee) }}</span>
+              <span>{{ formatCurrency(deliveryFee) }}원</span>
             </div>
             <div class="flex justify-between font-bold text-gray-800 border-t pt-2">
               <span>총 주문금액</span>
-              <span>{{ formatCurrency(totalPrice + deliveryFee) }}</span>
+              <span>{{ formatCurrency(totalPrice + deliveryFee) }}원</span>
             </div>
           </div>
         </div>
@@ -212,7 +227,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useCartStore } from '@/stores/cart';
 import { useAuthStore } from '@/stores/auth';
@@ -226,14 +241,12 @@ const orderStore = useOrderStore();
 const router = useRouter();
 const notificationStore = useNotificationStore();
 
-// 주문 폼 데이터
 const orderForm = ref({
   name: '', 
   phone: '', 
   email: '', 
   paymentMethod: 'card',
-  // 배송 정보
-  deliveryMethod: 'pickup', // 기본값은 픽업으로 설정
+  deliveryMethod: 'pickup',
   recipient: '',
   address: '',
   recipientPhone: '',
@@ -261,6 +274,15 @@ const finalOrderItems = computed(() => {
 const totalPrice = computed(() => {
     return finalOrderItems.value.reduce((sum, item) => sum + item.price * item.quantity, 0);
 });
+
+const handleRemoveItem = async (productId: string) => {
+  const result = await cartStore.removeItem(productId);
+  if (result.success) {
+    notificationStore.showNotification(result.message, 'success');
+  } else {
+    notificationStore.showNotification(result.message, 'error');
+  }
+};
 
 onMounted(() => {
     if (authStore.user) {
