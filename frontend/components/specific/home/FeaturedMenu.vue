@@ -1,58 +1,142 @@
 <template>
-  <section class="w-full px-4 py-12">
+  <section class="w-full px-4 py-8">
     <h2 class="text-4xl font-bold text-center mb-4 text-primary">Menu Of Month</h2>
-    <p class="text-center text-lg text-textDark mb-10 max-w-3xl mx-auto">
+    <p class="text-center text-lg text-textDark mb-8 max-w-3xl mx-auto">
       매월 새롭게 선보이는 블루밍무드베이킹의 특별한 메뉴들을 만나보세요.
     </p>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-      <div v-for="item in monthlyMenuItems" :key="item.id" class="flex flex-col items-center">
-        <div class="block cursor-pointer" @click="openDetail(item)">
-          <div class="relative w-full rounded-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
-            <img :src="item.imageUrl" :alt="item.name" class="w-full aspect-square object-cover">
-          </div>
-          <div class="mt-4 text-center">
-            <h4 class="text-xl text-textDark">{{ item.name }}</h4>
-            <p class="text-lg font-bold text-primary mt-2">
-              <span v-if="item.price && !isNaN(parseInt(item.price.replace(',', '')))">
-                {{ item.price }}원
-              </span>
-              <span v-else>
-                {{ item.price }}
-              </span>
-            </p>
-          </div>
+    <div v-if="pendingMonthly" class="text-center py-10">
+      <p class="text-gray-500">이달의 메뉴를 불러오는 중입니다... ⏳</p>
+    </div>
+    <div v-else-if="monthlyError" class="text-center py-10">
+      <p class="text-red-500">이달의 메뉴를 불러오는 데 실패했습니다. 다시 시도해 주세요. 🚫</p>
+    </div>
+    <div v-else-if="monthlyMenuItems && monthlyMenuItems.length > 0" class="relative flex items-center">
+      <button 
+        @click="scrollMonthly(-1)" 
+        :class="{'opacity-0 pointer-events-none': monthlyMenuItems.length <= 4}"
+        class="p-2 bg-white rounded-full shadow-md z-10 transition-opacity mt-[-4rem]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-textDark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      
+      <div 
+        ref="monthlyCarousel" 
+        :class="{'justify-center': monthlyMenuItems.length <= 4}"
+        class="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar">
+        <div 
+          v-for="item in monthlyMenuItems" 
+          :key="item.id" 
+          class="snap-start flex-shrink-0 w-full sm:w-1/2 md:w-1/3 lg:w-1/4 p-2">
+          
+          <a v-if="item.price === 0" href="https://forms.gle/RJ7hyFEcygY2CiRN8" target="_blank" rel="noopener noreferrer" class="block">
+            <div class="relative w-full rounded-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
+              <img :src="item.imageUrl" :alt="item.name" class="w-full aspect-square object-cover">
+            </div>
+            <div class="mt-4 text-center">
+              <h4 class="text-xl text-textDark">{{ item.name }}</h4>
+              <p class="text-lg font-bold text-primary mt-2">
+                {{ getPriceText(item.price) }}
+              </p>
+            </div>
+          </a>
+          <NuxtLink v-else :to="`/menu/${item.id}`" class="block">
+            <div class="relative w-full rounded-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
+              <img :src="item.imageUrl" :alt="item.name" class="w-full aspect-square object-cover">
+            </div>
+            <div class="mt-4 text-center">
+              <h4 class="text-xl text-textDark">{{ item.name }}</h4>
+              <p class="text-lg font-bold text-primary mt-2">
+                {{ getPriceText(item.price) }}
+              </p>
+            </div>
+          </NuxtLink>
         </div>
       </div>
+
+      <button 
+        @click="scrollMonthly(1)" 
+        :class="{'opacity-0 pointer-events-none': monthlyMenuItems.length <= 4}"
+        class="p-2 bg-white rounded-full shadow-md z-10 transition-opacity mt-[-4rem]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-textDark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+    <div v-else class="text-center py-10">
+      <p class="text-gray-500">아직 등록된 이달의 메뉴가 없습니다.</p>
     </div>
 
-    <h2 class="text-4xl font-bold text-center mb-4 text-primary mt-16">Signeture Menu</h2>
-    <p class="text-center text-lg text-textDark mb-10 max-w-3xl mx-auto">
+    <h2 class="text-4xl font-bold text-center mb-4 text-primary mt-12">Signeture Menu</h2>
+    <p class="text-center text-lg text-textDark mb-8 max-w-3xl mx-auto">
       블루밍무드베이킹의 시그니처 메뉴로 특별한 브런치를 즐겨보세요.
     </p>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-      <div v-for="item in featuredItems" :key="item.id" class="flex flex-col items-center">
-        <div class="block cursor-pointer" @click="openDetail(item)">
-          <div class="relative w-full rounded-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
-            <img :src="item.imageUrl" :alt="item.name" class="w-full aspect-square object-cover">
-          </div>
-          <div class="mt-4 text-center">
-            <h4 class="text-xl text-textDark">{{ item.name }}</h4>
-            <p class="text-lg font-bold text-primary mt-2">
-              <span v-if="item.price && !isNaN(parseInt(item.price.replace(',', '')))">
-                {{ item.price }}원
-              </span>
-              <span v-else>
-                {{ item.price }}
-              </span>
-            </p>
-          </div>
+    <div v-if="pendingFeatured" class="text-center py-10">
+      <p class="text-gray-500">시그니처 메뉴를 불러오는 중입니다... ⏳</p>
+    </div>
+    <div v-else-if="featuredError" class="text-center py-10">
+      <p class="text-red-500">시그니처 메뉴를 불러오는 데 실패했습니다. 다시 시도해 주세요. 🚫</p>
+    </div>
+    <div v-else-if="featuredItems && featuredItems.length > 0" class="relative flex items-center">
+      <button 
+        @click="scrollFeatured(-1)" 
+        :class="{'opacity-0 pointer-events-none': featuredItems.length <= 4}"
+        class="p-2 bg-white rounded-full shadow-md z-10 transition-opacity mt-[-4rem]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-textDark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      
+      <div 
+        ref="featuredCarousel" 
+        :class="{'justify-center': featuredItems.length <= 4}"
+        class="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar">
+        <div 
+          v-for="item in featuredItems" 
+          :key="item.id" 
+          class="snap-start flex-shrink-0 w-full sm:w-1/2 md:w-1/3 lg:w-1/4 p-2">
+          
+          <a v-if="item.price === 0" href="https://forms.gle/RJ7hyFEcygY2CiRN8" target="_blank" rel="noopener noreferrer" class="block">
+            <div class="relative w-full rounded-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
+              <img :src="item.imageUrl" :alt="item.name" class="w-full aspect-square object-cover">
+            </div>
+            <div class="mt-4 text-center">
+              <h4 class="text-xl text-textDark">{{ item.name }}</h4>
+              <p class="text-lg font-bold text-primary mt-2">
+                {{ getPriceText(item.price) }}
+              </p>
+            </div>
+          </a>
+          <NuxtLink v-else :to="`/menu/${item.id}`" class="block">
+            <div class="relative w-full rounded-md overflow-hidden transform hover:scale-105 transition-transform duration-300">
+              <img :src="item.imageUrl" :alt="item.name" class="w-full aspect-square object-cover">
+            </div>
+            <div class="mt-4 text-center">
+              <h4 class="text-xl text-textDark">{{ item.name }}</h4>
+              <p class="text-lg font-bold text-primary mt-2">
+                {{ getPriceText(item.price) }}
+              </p>
+            </div>
+          </NuxtLink>
         </div>
       </div>
+      
+      <button 
+        @click="scrollFeatured(1)" 
+        :class="{'opacity-0 pointer-events-none': featuredItems.length <= 4}"
+        class="p-2 bg-white rounded-full shadow-md z-10 transition-opacity mt-[-4rem]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-textDark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+    <div v-else class="text-center py-10">
+      <p class="text-gray-500">아직 등록된 시그니처 메뉴가 없습니다.</p>
     </div>
 
-    <div class="text-center mt-12">
+    <div class="text-center mt-10">
       <NuxtLink to="/menu" class="bg-secondary text-textLight font-bold py-3 px-8 rounded-full shadow-lg hover:bg-opacity-90 transition-all duration-300">
         전체 메뉴 보기
       </NuxtLink>
@@ -61,26 +145,65 @@
 </template>
 
 <script setup lang="ts">
-const monthlyMenuItems = ref([
-  { id: 5, name: '프렌치 토스트', description: '달콤한 메이플 시럽과 계절 과일이 어우러진 프렌치 토스트', price: '13,000', imageUrl: '/images/menu-french-toast.jpg' },
-  { id: 6, name: '쉬림프 로제 파스타', description: '신선한 새우와 부드러운 로제 소스가 어우러진, 풍미 가득한 파스타', price: '18,000', imageUrl: '/images/brunch-shrimp-rose-pasta.jpg'},
-  { id: 7, name: '주문제작 케이크', description: '원하는 디자인과 맛으로 세상에 단 하나뿐인 특별한 케이크를 만들어 드립니다.', price: '별도 문의', imageUrl: '/images/dessert-custom-cake.jpg'},
-  { id: 8, name: '생화 케이크', description: '화려한 생화로 장식되어 특별한 날을 더욱 빛내줄 미니 케이크', price: '50,000', imageUrl: '/images/menu-fresh-flower-cake.jpg'},
-]);
+import { useAsyncData } from '#app';
+import { ref } from 'vue';
+import { useRuntimeConfig } from 'nuxt/app';
 
-const featuredItems = ref([
-  { id: 1, name: '프렌치 토스트', description: '달콤한 메이플 시럽과 계절 과일이 어우러진 프렌치 토스트', price: '13,000', imageUrl: '/images/menu-french-toast.jpg' },
-  { id: 2, name: '쉬림프 로제 파스타', description: '신선한 새우와 부드러운 로제 소스가 어우러진, 풍미 가득한 파스타', price: '18,000', imageUrl: '/images/brunch-shrimp-rose-pasta.jpg'},
-  { id: 3, name: '주문제작 케이크', description: '원하는 디자인과 맛으로 세상에 단 하나뿐인 특별한 케이크를 만들어 드립니다.', price: '별도 문의', imageUrl: '/images/dessert-custom-cake.jpg'},
-  { id: 4, name: '생화 케이크', description: '화려한 생화로 장식되어 특별한 날을 더욱 빛내줄 미니 케이크', price: '50,000', imageUrl: '/images/menu-fresh-flower-cake.jpg'},
-]);
+const config = useRuntimeConfig();
+const API_URL = config.public.apiBaseUrl;
 
+const { data: monthlyMenuItems, pending: pendingMonthly, error: monthlyError } = await useAsyncData('monthly-menu', () =>
+  $fetch(`${API_URL}/products/main/monthly-menu`)
+);
 
-// alert 창을 띄우는 함수 추가
-const openDetail = (item: any) => {
-  alert(`"${item.name}" 상세 보기 (모달 구현 예정)`);
+const { data: featuredItems, pending: pendingFeatured, error: featuredError } = await useAsyncData('signature-menu', () =>
+  $fetch(`${API_URL}/products/main/signature-menu`)
+);
+
+const monthlyCarousel = ref<HTMLElement | null>(null);
+const featuredCarousel = ref<HTMLElement | null>(null);
+
+const scrollMonthly = (direction: number) => {
+  if (monthlyCarousel.value) {
+    const itemElement = monthlyCarousel.value.querySelector('.snap-start') as HTMLElement;
+    if (itemElement) {
+      const itemWidth = itemElement.offsetWidth;
+      monthlyCarousel.value.scrollBy({ left: direction * itemWidth * 4, behavior: 'smooth' });
+    }
+  }
+};
+
+const scrollFeatured = (direction: number) => {
+  if (featuredCarousel.value) {
+    const itemElement = featuredCarousel.value.querySelector('.snap-start') as HTMLElement;
+    if (itemElement) {
+      const itemWidth = itemElement.offsetWidth;
+      featuredCarousel.value.scrollBy({ left: direction * itemWidth * 4, behavior: 'smooth' });
+    }
+  }
+};
+
+const getPriceText = (price: any) => {
+  if (price === 0) {
+    return '별도 문의';
+  }
+  if (typeof price === 'number') {
+    return `${price.toLocaleString()}원`;
+  }
+  return price;
 };
 </script>
 
 <style scoped>
+.relative {
+  position: relative;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 </style>

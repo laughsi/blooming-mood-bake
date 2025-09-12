@@ -19,7 +19,7 @@
       <div class="lg:w-3/4">
         <ul class="space-y-6">
           <li v-for="item in cartStore.cartItems" :key="item.product_id"
-            class="flex items-center bg-white p-4 rounded-lg shadow-md">
+            class="flex items-center bg-gray-100 p-4 rounded-lg shadow-md">
             <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.name"
               class="w-20 h-20 object-cover rounded-md mr-4" />
             <div v-else
@@ -50,7 +50,7 @@
         </ul>
       </div>
 
-      <div class="lg:w-1/4 bg-white p-6 rounded-lg shadow-md">
+      <div class="lg:w-1/4 bg-gray-100 p-6 rounded-lg shadow-md">
         <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">결제 정보</h2>
         <div class="flex justify-between text-gray-700 mb-2">
           <span>총 상품 금액</span>

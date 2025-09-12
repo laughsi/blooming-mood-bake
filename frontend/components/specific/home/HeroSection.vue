@@ -40,7 +40,6 @@ const heroImages = [
   { src: '/images/menu-avocado-toast.jpg', alt: '아보카도 토스트' },
   { src: '/images/brunch-mushroom-cream-pasta.jpg', alt: '머쉬룸 크림 파스타' },
   { src: '/images/brunch-classic-beef-burger.jpg', alt: '클래식 비프 버거' },
-  { src: '/images/brunch-chicken-avocado-sandwich.jpg', alt: '치킨 아보카도 샌드위치' },
   { src: '/images/brunch-croissant-sandwich.jpg', alt: '크루아상 샌드위치' },
   { src: '/images/menu-americano.jpg', alt: '아메리카노' },
   { src: '/images/menu-latte.jpg', alt: '카페 라떼' },
@@ -48,7 +47,6 @@ const heroImages = [
   { src: '/images/menu-fruit-roll-cake.jpg', alt: '과일 롤 케이크' },
   { src: '/images/menu-animal-mini-cake.jpg', alt: '동물 미니 케이크' },
   { src: '/images/menu-lucky-turtle-slice-cake.jpg', alt: '조각 케이크' },
-  { src: '/images/menu-babyblue-bottle-cake.jpg', alt: '보틀 케이크' },
   { src: '/images/menu-party-cupcake.jpg', alt: '컵 케이크' }
 ];
 

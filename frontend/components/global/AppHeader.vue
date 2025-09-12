@@ -5,7 +5,7 @@
         <span class="text-3xl font-script text-primary whitespace-nowrap">Blooming Mood <span class="font-bold">Bake</span></span>
       </NuxtLink>
 
-      <nav class="hidden md:block">
+      <nav class="hidden 2xl:block">
         <ul class="flex flex-nowrap space-x-10 text-xl font-semibold text-gray-600">
           <li><NuxtLink to="/menu" active-class="text-primary" class="whitespace-nowrap flex-shrink-0">Menu</NuxtLink></li>
           <li><NuxtLink to="/reservation" active-class="text-primary" class="whitespace-nowrap flex-shrink-0">Reservation</NuxtLink></li>
@@ -15,11 +15,11 @@
       </nav>
 
       <div class="flex items-center space-x-4">
-        <div v-if="isLoggedIn" class="text-textDark hover:text-primary transition-colors whitespace-nowrap flex items-center flex-shrink-0">
+        <div v-if="isLoggedIn" class="hidden 2xl:flex text-textDark hover:text-primary transition-colors whitespace-nowrap items-center flex-shrink-0">
           <span class="mr-2">{{ userName }} 님</span>
         </div>
 
-        <div class="hidden md:flex items-center flex-nowrap md:space-x-4 lg:space-x-6"> 
+        <div class="hidden 2xl:flex items-center flex-nowrap 2xl:space-x-4 lg:space-x-6"> 
           <ClientOnly>
             <template v-if="isLoggedIn">
               <button @click="logout" class="text-textDark hover:text-primary transition-colors whitespace-nowrap flex items-center flex-shrink-0">
@@ -63,14 +63,14 @@
         </div>
       </div>
 
-      <button class="md:hidden text-textDark text-2xl" @click="toggleMobileMenu">
+      <button class="2xl:hidden text-textDark text-2xl" @click="toggleMobileMenu">
         <Icon v-if="!isMobileMenuOpen" name="lucide:menu" class="w-7 h-7" />
         <Icon v-else name="lucide:x" class="w-7 h-7" />
       </button>
     </div>
 
     <Transition name="slide-right">
-      <div v-if="isMobileMenuOpen" class="md:hidden fixed top-0 right-0 h-full w-3/4 max-w-sm bg-white shadow-lg p-6 z-40 flex flex-col items-start space-y-6 overflow-y-auto">
+      <div v-if="isMobileMenuOpen" class="2xl:hidden fixed top-0 right-0 h-full w-3/4 max-w-sm bg-white shadow-lg p-6 z-40 flex flex-col items-start space-y-6 overflow-y-auto">
         <button @click="closeMobileMenu" class="absolute top-4 right-4 text-textDark">
           <Icon name="lucide:x" class="w-8 h-8" />
         </button>
@@ -88,36 +88,36 @@
               <span class="text-xl font-semibold text-textDark">{{ userName }}님, 안녕하세요!</span>
             </div>
             <button @click="logoutAndCloseMenu" class="mobile-nav-link flex items-center">
-              <Icon name="lucide:log-out" class="w-5 h-5 mr-1" />
+              <Icon name="lucide:log-out"/>
               Logout
             </button>
             <NuxtLink to="/mypage" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:user" class="w-5 h-5 mr-1" />
+              <Icon name="lucide:user"/>
               Mypage
             </NuxtLink>
             <NuxtLink to="/order" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:clipboard" class="w-5 h-5 mr-1" />
+              <Icon name="lucide:clipboard"/>
               Order
             </NuxtLink>
             <NuxtLink v-if="isAdmin" to="/admin" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:settings" class="w-5 h-5 mr-1" />
+              <Icon name="lucide:settings"/>
               Manager
             </NuxtLink>
             <NuxtLink to="/cart" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:shopping-cart" class="w-6 h-6 mr-1" />
+              <Icon name="lucide:shopping-cart"/>
             </NuxtLink>
           </template>
           <template v-else>
             <NuxtLink to="/login" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:log-in" class="w-5 h-5 mr-1" />
+              <Icon name="lucide:log-in"/>
               Login
             </NuxtLink>
             <NuxtLink to="/order" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:clipboard" class="w-5 h-5 mr-1" />
+              <Icon name="lucide:clipboard"/>
               Order
             </NuxtLink>
             <NuxtLink to="/cart" class="mobile-nav-link flex items-center" @click="closeMobileMenu">
-              <Icon name="lucide:shopping-cart" class="w-6 h-6 mr-1" />
+              <Icon name="lucide:shopping-cart"/>
             </NuxtLink>
           </template>
         </ClientOnly>
@@ -125,7 +125,7 @@
     </Transition>
 
     <Transition name="fade-overlay">
-      <div v-if="isMobileMenuOpen" @click="closeMobileMenu" class="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"></div>
+      <div v-if="isMobileMenuOpen" @click="closeMobileMenu" class="2xl:hidden fixed inset-0 bg-black bg-opacity-50 z-30"></div>
     </Transition>
   </header>
 </template>

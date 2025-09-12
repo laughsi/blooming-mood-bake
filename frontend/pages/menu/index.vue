@@ -1,4 +1,3 @@
-// frontend/pages/menu.vue
 <template>
   <div class="container mx-auto px-4 py-12">
     <h1 class="text-4xl md:text-5xl font-bold text-center mb-10 text-primary">Brunch & Beverage Menu</h1>
@@ -36,32 +35,63 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
       <div v-for="product in products" :key="product.id" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden group">
-        <div class="relative w-full h-56">
-          <img
-            v-if="product.imageUrl"
-            :src="product.imageUrl"
-            :alt="product.name"
-            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-          <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 font-medium">
-            이미지 없음
+        <a v-if="product.price === 0" :href="specialOrderUrl" target="_blank" rel="noopener noreferrer" class="block">
+          <div class="relative w-full h-56">
+            <img v-if="product.imageUrl" :src="product.imageUrl" :alt="product.name" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 font-medium">
+              이미지 없음
+            </div>
           </div>
-        </div>
+        </a>
+        <NuxtLink v-else :to="`/menu/${product.id}`" class="block">
+          <div class="relative w-full h-56">
+            <img v-if="product.imageUrl" :src="product.imageUrl" :alt="product.name" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 font-medium">
+              이미지 없음
+            </div>
+          </div>
+        </NuxtLink>
+
         <div class="p-6">
           <h3 class="text-xl font-bold text-gray-800 mb-2">{{ product.name }}</h3>
           <p class="text-sm text-gray-500 mb-4">{{ product.category_name }}</p>
-          <p class="text-2xl font-bold text-primary mb-2">{{ product.price.toLocaleString() }}원</p>
+          
+          <p class="text-2xl font-bold text-primary mb-2">
+            <span v-if="product.price === 0">별도 문의</span>
+            <span v-else>{{ product.price.toLocaleString() }}원</span>
+          </p>
+
           <p v-if="product.stock === 0" class="text-red-500 font-medium">품절</p>
           <p v-else class="text-gray-600 font-medium">재고: {{ product.stock }}개</p>
           
-          <div class="mt-4 flex items-center justify-between">
-            <button
-              @click="addToCart(product)"
-              :disabled="product.stock === 0"
-              class="w-full bg-primary text-white py-2 px-4 rounded-full font-semibold text-sm transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              장바구니 담기
-            </button>
+          <div class="mt-4 flex flex-col gap-2">
+            <template v-if="product.price === 0">
+              <div class="h-10"></div>
+              <a 
+                :href="specialOrderUrl" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="w-full bg-secondary text-white py-2 px-4 rounded-full font-semibold text-sm text-center transition-colors duration-300"
+              >
+                별도 주문하기
+              </a>
+            </template>
+            <template v-else>
+              <button
+                @click="buyNow(product)"
+                :disabled="product.stock === 0"
+                class="w-full bg-secondary text-textLight py-2 px-4 rounded-full font-semibold text-sm transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                구매하기
+              </button>
+              <button
+                @click="addToCart(product)"
+                :disabled="product.stock === 0"
+                class="w-full bg-primary text-white py-2 px-4 rounded-full font-semibold text-sm transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                장바구니
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -96,13 +126,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRuntimeConfig } from 'nuxt/app';
+import { useRuntimeConfig, navigateTo } from 'nuxt/app';
 import { useNotificationStore } from '~/stores/notification';
 import { useCartStore } from '~/stores/cart';
+import type { CartItem } from '~/stores/cart';
 
-// 인터페이스 정의 (타입 안정성을 위해)
 interface Product {
-  id: string; // uuid는 문자열
+  id: string;
   name: string;
   price: number;
   stock: number;
@@ -114,7 +144,7 @@ interface Product {
 }
 
 interface Category {
-  id: string; // uuid는 문자열
+  id: string;
   name: string;
 }
 
@@ -131,7 +161,8 @@ const currentPage = ref(1);
 const totalPages = ref(1);
 const selectedCategory = ref('');
 
-// 상품 목록을 불러오는 함수
+const specialOrderUrl = 'https://forms.gle/RJ7hyFEcygY2CiRN8'; 
+
 const fetchProducts = async () => {
   loading.value = true;
   error.value = null;
@@ -160,7 +191,6 @@ const fetchProducts = async () => {
   }
 };
 
-// 카테고리 목록을 불러오는 함수
 const fetchCategories = async () => {
   try {
     const response = await $fetch<any>(`${config.public.apiBaseUrl}/categories`);
@@ -174,11 +204,10 @@ const fetchCategories = async () => {
 
 const filterByCategory = (categoryName: string) => {
   selectedCategory.value = categoryName;
-  currentPage.value = 1; // 필터 변경 시 첫 페이지로 이동
-  fetchProducts(); // 새로운 필터로 상품 재요청
+  currentPage.value = 1;
+  fetchProducts();
 };
 
-// 페이지 변경 함수
 const changePage = (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
@@ -186,7 +215,6 @@ const changePage = (page: number) => {
   }
 };
 
-// 장바구니에 상품 추가 (pinia 스토어 사용)
 const addToCart = async (product: Product) => {
   const result = await cartStore.addItem({
     product_id: product.id,
@@ -203,7 +231,29 @@ const addToCart = async (product: Product) => {
   }
 };
 
-// 컴포넌트 마운트 시 데이터 로딩
+const buyNow = async (product: Product) => {
+  if (product.stock === 0) {
+    notificationStore.showNotification('품절된 상품입니다.', 'warning');
+    return;
+  }
+
+  const result = await cartStore.addItem({
+    product_id: product.id,
+    name: product.name,
+    price: product.price,
+    imageUrl: product.imageUrl,
+    stock: product.stock,
+    quantity: 1, 
+  });
+
+  if (result.success) {
+    notificationStore.showNotification('구매 페이지로 이동합니다.', 'info');
+    navigateTo('/order');
+  } else {
+    notificationStore.showNotification(result.message, 'error');
+  }
+};
+
 onMounted(() => {
   fetchCategories();
   fetchProducts();
@@ -216,6 +266,3 @@ useHead({
   ],
 })
 </script>
-
-<style scoped>
-</style>

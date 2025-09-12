@@ -4,32 +4,9 @@ const path = require('path');
 const multer = require('multer');
 const fs = require('fs').promises;
 
-module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucketName, isProduction) => {
+module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucketName, isProduction, formatProductResponse) => {
     const uploadProductMiddleware = multer({ storage: multer.memoryStorage() });
 
-    const formatProductResponse = (productRow) => {
-        let formattedImageUrl = null;
-        if (productRow.image_url) {
-            formattedImageUrl = productRow.image_url;
-        }
-        
-        return {
-            id: productRow.id,
-            name: productRow.name,
-            description: productRow.description,
-            category_id: productRow.category_id,
-            category_name: productRow.category_name,
-            price: productRow.price,
-            stock: productRow.stock_quantity,
-            imageUrl: formattedImageUrl,
-            status: productRow.is_available,
-            is_monthly_menu: productRow.is_monthly_menu, 
-            is_signature_menu: productRow.is_signature_menu,
-            created_at: productRow.created_at,
-            updated_at: productRow.updated_at
-        };
-    };
-    
     const formatUserResponse = (userRow) => {
         return {
             id: userRow.id,
@@ -124,6 +101,7 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
         }
     });
 
+    // 상품 등록 및 수정 라우터
     router.post('/products', authMiddleware, adminMiddleware, uploadProductMiddleware.single('image'), async (req, res) => {
         let client;
         let imageUrl = null;
@@ -174,13 +152,13 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             }
             const category_id = categoryResult.rows[0].id;
 
-            const finalIsAvailable = (is_available !== undefined && is_available !== null)
-                ? (is_available === 'true')
-                : (parseInt(stock) > 0);
+            const productPrice = (price === '별도 문의') ? 0 : parseInt(price.toString().replace(/,/g, ''));
+            const productStock = parseInt(stock);
 
-            const isMonthlyMenuBool = is_monthly_menu === 'true';
-            const isSignatureMenuBool = is_signature_menu === 'true';
-
+            const finalIsAvailable = is_available !== undefined ? (is_available === 'true') : (productStock > 0);
+            const isMonthlyMenuBool = JSON.parse(is_monthly_menu);
+            const isSignatureMenuBool = JSON.parse(is_signature_menu);
+            
             const insertQuery = `
                 INSERT INTO products (
                     name, description, price, stock_quantity, category_id,
@@ -193,8 +171,8 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             const values = [
                 name,
                 description || null,
-                parseInt(price),
-                parseInt(stock),
+                productPrice,
+                productStock,
                 category_id,
                 imageUrl,
                 finalIsAvailable,
@@ -219,9 +197,9 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
             }
             console.error('상품 등록 중 오류 발생:', error);
             const errorMessage = (error.code === '23503') ? '데이터베이스 오류: 카테고리 ID가 존재하지 않습니다.' :
-                               (error.code === '23502') ? `데이터베이스 오류: 필수 필드가 누락되었습니다. (${error.detail})` :
-                               (error.message.includes("유효하지 않은 카테고리입니다.") || error.message.includes("필수 필드가 누락되었습니다.")) ? error.message :
-                               '상품 등록 중 서버 오류가 발생했습니다.';
+                            (error.code === '23502') ? `데이터베이스 오류: 필수 필드가 누락되었습니다. (${error.detail})` :
+                            (error.message.includes("유효하지 않은 카테고리입니다.") || error.message.includes("필수 필드가 누락되었습니다.")) ? error.message :
+                            '상품 등록 중 서버 오류가 발생했습니다.';
             res.status(500).json({ success: false, message: errorMessage, detailedError: error.message });
         } finally {
             if (client) { client.release(); }
@@ -332,17 +310,18 @@ module.exports = (pool, authMiddleware, adminMiddleware, supabase, productBucket
 
             const finalName = name !== undefined ? name : oldProduct.name;
             const finalDescription = description !== undefined ? description : oldProduct.description;
-            const finalPrice = price !== undefined ? parseInt(price) : oldProduct.price;
+
+            const finalPrice = (price !== undefined) ? ((price === '별도 문의') ? 0 : parseInt(price.toString().replace(/,/g, ''))) : oldProduct.price;
             const finalStock = stock !== undefined ? parseInt(stock) : oldProduct.stock_quantity;
             
             const finalIsAvailable = (is_available !== undefined && is_available !== null)
-                ? (is_available === 'true')
+                ? JSON.parse(is_available)
                 : oldProduct.is_available;
             const finalIsMonthlyMenu = (is_monthly_menu !== undefined && is_monthly_menu !== null)
-                ? (is_monthly_menu === 'true')
+                ? JSON.parse(is_monthly_menu)
                 : oldProduct.is_monthly_menu;
             const finalIsSignatureMenu = (is_signature_menu !== undefined && is_signature_menu !== null)
-                ? (is_signature_menu === 'true')
+                ? JSON.parse(is_signature_menu)
                 : oldProduct.is_signature_menu;
 
             let finalCategoryId = oldProduct.category_id;

@@ -1,13 +1,13 @@
 <template>
   <div class="container mx-auto px-4 py-12">
-    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">결제하기</h1>
+    <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">결제하기</h1>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
       
       <div class="md:col-span-2 space-y-8">
         
         <div class="bg-gray-100 p-6 rounded-lg shadow-md">
           <h2 class="text-xl font-bold mb-4 text-gray-700">주문 상품 정보</h2>
-          <div v-for="item in cartStore.items" :key="item.product_id" class="flex items-center space-x-4 py-3 border-b last:border-b-0">
+          <div v-for="item in finalOrderItems" :key="item.product_id" class="flex items-center space-x-4 py-3 border-b last:border-b-0">
             <img :src="item.imageUrl" :alt="item.name" class="w-20 h-20 object-cover rounded-lg">
             <div class="flex-1">
               <h3 class="font-semibold text-gray-800">{{ item.name }}</h3>
@@ -76,7 +76,7 @@
                 <div>
                   <label for="pickupDate" class="block text-sm font-medium text-gray-700">픽업 날짜</label>
                   <input type="date" id="pickupDate" v-model="orderForm.pickupDate" 
-                        class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2">
+                          class="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 px-3 py-2">
                 </div>
                 <div>
                   <label for="pickupHour" class="block text-sm font-medium text-gray-700">픽업 시간</label>
@@ -99,7 +99,7 @@
           <div class="space-y-2 text-gray-600">
             <div class="flex justify-between">
               <span>상품 가격</span>
-              <span>{{ formatCurrency(cartStore.cartTotalPrice) }}</span>
+              <span>{{ formatCurrency(totalPrice) }}</span>
             </div>
             <div class="flex justify-between">
               <span>배송비</span>
@@ -107,7 +107,7 @@
             </div>
             <div class="flex justify-between font-bold text-gray-800 border-t pt-2">
               <span>총 주문금액</span>
-              <span>{{ formatCurrency(cartStore.cartTotalPrice + deliveryFee) }}</span>
+              <span>{{ formatCurrency(totalPrice + deliveryFee) }}</span>
             </div>
           </div>
         </div>
@@ -199,7 +199,7 @@
           </div>
 
           <button 
-            @click="placeOrder" 
+            @click="handlePlaceOrder" 
             :disabled="!isFormValid"
             class="mt-6 w-full py-3 px-4 rounded-lg font-bold text-white transition-colors duration-300"
             :class="{'bg-primary hover:bg-primary-dark': isFormValid, 'bg-gray-400 cursor-not-allowed': !isFormValid}"
@@ -216,14 +216,15 @@
 import { ref, computed, onMounted } from 'vue';
 import { useCartStore } from '@/stores/cart';
 import { useAuthStore } from '@/stores/auth';
-import { useRouter, useRoute } from 'vue-router';
-import { useRuntimeConfig } from '#app';
+import { useOrderStore } from '@/stores/order';
+import { useRouter } from 'vue-router';
+import { useNotificationStore } from '~/stores/notification';
 
 const cartStore = useCartStore();
 const authStore = useAuthStore();
+const orderStore = useOrderStore();
 const router = useRouter();
-const route = useRoute();
-const config = useRuntimeConfig();
+const notificationStore = useNotificationStore();
 
 // 주문 폼 데이터
 const orderForm = ref({
@@ -249,30 +250,35 @@ const orderForm = ref({
   businessType: '',
   businessCategory: '',
   businessAddress: '',
-  cartItems: cartStore.items
 });
 
 const deliveryMethod = ref(orderForm.value.deliveryMethod);
 
-// `onMounted` 훅을 사용하여 페이지 로드 시 라우터 쿼리 파라미터에서 `deliveryMethod` 값을 가져옴
-onMounted(() => {
-  if (route.query.deliveryMethod) {
-    deliveryMethod.value = route.query.deliveryMethod;
-  }
-
-  if (authStore.user) {
-    orderForm.value.name = authStore.user.username || '';
-    orderForm.value.phone = authStore.user.phone_number || '';
-    orderForm.value.email = authStore.user.email || '';
-  }
+const finalOrderItems = computed(() => {
+  return cartStore.items;
 });
 
-// 배송비 계산
+const totalPrice = computed(() => {
+    return finalOrderItems.value.reduce((sum, item) => sum + item.price * item.quantity, 0);
+});
+
+onMounted(() => {
+    if (authStore.user) {
+        orderForm.value.name = authStore.user.username || '';
+        orderForm.value.phone = authStore.user.phone_number || '';
+        orderForm.value.email = authStore.user.email || '';
+    }
+    
+    if (finalOrderItems.value.length === 0) {
+        notificationStore.showNotification('주문할 상품이 없습니다.', 'warning');
+        router.push('/menu');
+    }
+});
+
 const deliveryFee = computed(() => {
   return deliveryMethod.value === 'delivery' ? 5000 : 0;
 });
 
-// 약관 동의
 const agreePrivacy = ref(false);
 const agreeTerms = ref(false);
 const agreeAll = computed({
@@ -285,19 +291,15 @@ const agreeAll = computed({
   }
 });
 
-// 폼 유효성 검사
 const isFormValid = computed(() => {
-  // 공통 필수 필드
   let isValid = orderForm.value.name && orderForm.value.phone && orderForm.value.email;
 
-  // 배송 방식에 따른 추가 유효성 검사
   if (deliveryMethod.value === 'delivery') {
     isValid = isValid && orderForm.value.recipient && orderForm.value.address && orderForm.value.recipientPhone;
-  } else { // pickup
+  } else {
     isValid = isValid && orderForm.value.pickupDate && orderForm.value.pickupHour;
   }
 
-  // 결제 방식에 따른 추가 유효성 검사
   if (orderForm.value.paymentMethod === 'bank') {
     isValid = isValid && orderForm.value.depositorName && orderForm.value.depositBank;
     if (orderForm.value.receiptType === 'tax_invoice') {
@@ -305,7 +307,6 @@ const isFormValid = computed(() => {
     }
   }
 
-  // 약관 동의
   isValid = isValid && agreePrivacy.value && agreeTerms.value;
 
   return isValid;
@@ -313,56 +314,22 @@ const isFormValid = computed(() => {
 
 const availableHours = ref(Array.from({ length: 12 }, (_, i) => i + 9));
 
-// 숫자 포맷팅을 위한 헬퍼 함수
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
 };
 
-// 결제하기 버튼 클릭 시 호출될 함수
-const placeOrder = async () => {
-  if (!isFormValid.value) return;
-  
-  try {
-    const orderData = {
-      ...orderForm.value,
-      deliveryMethod: deliveryMethod.value, // deliveryMethod를 orderForm에 추가
-      deliveryFee: deliveryFee.value,
-      totalPrice: cartStore.cartTotalPrice + deliveryFee.value,
-    };
+const handlePlaceOrder = async () => {
+    if (!isFormValid.value) return;
 
-    if (deliveryMethod.value === 'pickup') {
-      const date = orderForm.value.pickupDate;
-      const hour = orderForm.value.pickupHour;
-      if (date && hour) {
-        orderData.pickupTime = `${date}T${hour.toString().padStart(2, '0')}:00:00`;
-      }
-    }
+    const result = await orderStore.placeOrder();
 
-    const response = await $fetch(`${config.public.apiBaseUrl}/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: orderData
-    });
-
-    if (response.success) {
-      alert('주문이 성공적으로 완료되었습니다.');
-      cartStore.clearCart();
-      router.push('/order-complete');
+    if (result.success) {
+        notificationStore.showNotification(result.message, 'success');
+        router.push('/order-complete');
     } else {
-      alert(response.message || '주문 실패');
+        notificationStore.showNotification(result.message, 'error');
     }
-  } catch (error) {
-    console.error('주문 실패:', error);
-    alert('주문 처리 중 오류가 발생했습니다.');
-  }
 };
-
-if (cartStore.cartItemCount === 0) {
-  router.push('/cart');
-}
 
 useHead({
   title: '결제하기',

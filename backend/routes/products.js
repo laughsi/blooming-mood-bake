@@ -1,4 +1,3 @@
-// backend/routes/products.js
 const express = require('express');
 const router = express.Router();
 
@@ -52,16 +51,9 @@ module.exports = (pool) => {
             
             const query = `
                 SELECT
-                    p.id,
-                    p.name,
-                    p.description,
-                    p.price,
-                    p.stock_quantity as stock,
-                    p.is_available,
-                    p.is_monthly_menu,
-                    p.is_signature_menu,
-                    c.name AS category_name,
-                    p.image_url
+                    p.id, p.name, p.description, p.price, p.stock_quantity as stock,
+                    p.is_available, p.is_monthly_menu, p.is_signature_menu,
+                    c.name AS category_name, p.image_url
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.id
                 ${whereClause}
@@ -112,20 +104,12 @@ module.exports = (pool) => {
             
             const productResult = await client.query(
                 `SELECT
-                    p.id,
-                    p.name,
-                    p.description,
-                    p.price,
-                    p.stock_quantity as stock,
-                    p.is_available,
-                    p.is_monthly_menu,
-                    p.is_signature_menu,
-                    p.category_id,
-                    c.name AS category_name,
-                    p.image_url
+                    p.id, p.name, p.description, p.price, p.stock_quantity as stock,
+                    p.is_available, p.is_monthly_menu, p.is_signature_menu,
+                    p.category_id, c.name AS category_name, p.image_url
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.id = $1::uuid`,
+                WHERE p.id = $1::uuid AND p.is_available = true`,
                 [id]
             );
 
@@ -141,6 +125,52 @@ module.exports = (pool) => {
         } catch (error) {
             console.error('특정 상품 조회 오류:', error);
             res.status(500).json({ success: false, message: '상품 정보를 불러오는 중 서버 오류가 발생했습니다.', detailedError: error.message });
+        } finally {
+            if (client) {
+                client.release();
+            }
+        }
+    });
+
+    // 메인 페이지 - 이달의 메뉴 API (is_monthly_menu가 true인 상품 4개)
+    router.get('/main/monthly-menu', async (req, res) => {
+        let client;
+        try {
+            client = await pool.connect();
+            const result = await client.query(
+                `SELECT p.id, p.name, p.description, p.price, p.image_url, p.is_available
+                 FROM products p
+                 WHERE p.is_monthly_menu = TRUE AND p.is_available = TRUE
+                 ORDER BY p.created_at DESC;`
+            );
+            const formattedProducts = result.rows.map(formatProductResponse);
+            res.json(formattedProducts);
+        } catch (error) {
+            console.error('이달의 메뉴 조회 오류:', error);
+            res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+        } finally {
+            if (client) {
+                client.release();
+            }
+        }
+    });
+
+    // 메인 페이지 - 시그니처 메뉴 API (is_signature_menu가 true인 상품 4개)
+    router.get('/main/signature-menu', async (req, res) => {
+        let client;
+        try {
+            client = await pool.connect();
+            const result = await client.query(
+                `SELECT p.id, p.name, p.description, p.price, p.image_url, p.is_available
+                 FROM products p
+                 WHERE p.is_signature_menu = TRUE AND p.is_available = TRUE
+                 ORDER BY p.created_at DESC;`
+            );
+            const formattedProducts = result.rows.map(formatProductResponse);
+            res.json(formattedProducts);
+        } catch (error) {
+            console.error('시그니처 메뉴 조회 오류:', error);
+            res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
         } finally {
             if (client) {
                 client.release();
